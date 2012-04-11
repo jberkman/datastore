@@ -31,6 +31,30 @@ module ActiveRecord
         ADAPTER_NAME
       end
       
+      # XXX jberkman: don't know if these are all correct.
+      NATIVE_DATABASE_TYPES = {
+        :string => { :name => "string" },
+        :text => { :name => "text" },
+        :integer => { :name => "int" },
+        :float => { :name => "float" },
+        :decimal => { :name => "int" },
+        :datetime => { :name => "datetime" },
+        :timestamp => { :name => "datetime" },
+        :time => { :name => "datetime" },
+        :date => { :name => "datetime" },
+        :binary => { :name => "blob" },
+        :boolean => { :name => "bool" }
+      }
+      
+      def native_database_types
+        NATIVE_DATABASE_TYPES
+      end
+      
+      # XXX jberkman: implement this
+      def indexes(table_name, name = nil)
+        []
+      end
+      
       def supports_migrations? #:nodoc:
         true
       end

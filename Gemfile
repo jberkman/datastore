@@ -4,4 +4,4 @@ source "http://rubygems.org"
 gemspec
 
 gem 'rspec'
-gem 'appengine-sdk', '1.4.0'
+gem 'appengine-sdk', '>= 1.4.0'
