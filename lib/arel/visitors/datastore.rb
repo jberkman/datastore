@@ -122,8 +122,7 @@ module Arel
 
       def visit_Arel_Nodes_SelectStatement o
         c    = o.cores.first
-        QString.new( @connection, o.relation.name,
-                     get_limit_and_offset(o) ).wheres( c.wheres ).orders(o.orders).projections( c.projections )
+        QString.new( @connection, c.froms.name, get_limit_and_offset(o) ).wheres( c.wheres ).orders(o.orders).projections( c.projections )
       end
 
       def insert_type_case( value )
