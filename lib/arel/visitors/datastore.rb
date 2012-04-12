@@ -104,6 +104,14 @@ module Arel
           ords.each{|o|
             if( o.is_a? String )
               key, dir, notuse = o.split
+              if dir.is_a? String
+                dir = case dir
+                  when "ASC"
+                    AppEngine::Datastore::Query::ASCENDING
+                  when "DESC"
+                    AppEngine::Datastore::Query::DESCENDING
+                  end
+              end
             else
               key, dir = o.expr, o.direction
             end
