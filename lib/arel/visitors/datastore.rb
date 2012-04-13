@@ -8,6 +8,8 @@ module Arel
     class Datastore < Arel::Visitors::ToSql
 
       class QString
+        JavaKey = Java::ComGoogleAppengineApiDatastore::Key
+
         attr :kind
         attr :q 
         attr :options
@@ -54,7 +56,7 @@ module Arel
         end
 
         TypeCast = {
-          :primary_key => lambda{|k,v| AppEngine::Datastore::Key.from_path( k, v.to_i ) },
+          :primary_key => lambda{|k,v| v.is_a?(JavaKey) ? v : AppEngine::Datastore::Key.from_path( k, v.to_i ) },
           :integer     => lambda{|k,i| i.to_i },
           :datetime    => lambda{|k,t| t.is_a?(Time)? t : Time.parse(t.to_s) },
           :date        => lambda{|k,t| t.is_a?(Date)? t : Date.parse(t.to_s) },
