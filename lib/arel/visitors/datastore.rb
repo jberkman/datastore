@@ -108,9 +108,9 @@ module Arel
               key, dir, notuse = o.split
               if dir.is_a? String
                 dir = case dir
-                  when "ASC"
+                  when /ASC/
                     AppEngine::Datastore::Query::ASCENDING
-                  when "DESC"
+                  when /DESC/
                     AppEngine::Datastore::Query::DESCENDING
                   end
               end
