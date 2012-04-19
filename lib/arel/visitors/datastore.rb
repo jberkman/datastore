@@ -62,7 +62,8 @@ module Arel
           :date        => lambda{|k,t| t.is_a?(Date)? t : Date.parse(t.to_s) },
           :float       => lambda{|k,f| f.to_f },
           :text        => lambda{|k,t| AppEngine::Datastore::Text.new(t) },
-          :binary      => lambda{|k,t| AppEngine::Datastore::Blob.new(t) }
+          :binary      => lambda{|k,t| AppEngine::Datastore::Blob.new(t) },
+          :boolean     => lambda{|k,b| b == true || b.to_s =~ (/(true|t|yes|y|1)$/i) ? true : false }
         }
         InScan = /'((\\.|[^'])*)'|(\d+)/
         def apply_filter( key, opt, value )
