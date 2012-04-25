@@ -8,8 +8,8 @@ Use appengine-sdk (1.4.0)
 
 Create Rails 3 application:
 
-bc. gem install rails --version=3.0.6
-rails new app_name -m http://siddick.github.com/datastore/rails3.rb
+bc. gem install rails --version=3.0.12
+rails new app_name -m https://raw.github.com/jberkman/datastore/master/examples/rails3_edge.rb
 cd app_name
 appcfg.rb run bin/rails g scaffold post title:string content:text  
 appcfg.rb run bin/rake db:migrate
