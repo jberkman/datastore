@@ -9,6 +9,8 @@ require 'active_record/datastore_associations_patch'
 require 'yaml'
 require 'arel/visitors/datastore'
 
+require 'java'
+
 module ActiveRecord
   class Base
     def self.datastore_connection(config) # :nodoc:
@@ -19,8 +21,49 @@ module ActiveRecord
   module ConnectionAdapters
 
     class DataStoreColumn < Column
-      def self.binary_to_string value
-        AppEngine::Datastore::Blob.new(value)
+      class << self
+
+        def binary_to_string value
+          AppEngine::Datastore::Blob.new(value)
+        end
+
+        def klass
+          case type
+          when 'user' then Java::ComGoogleAppengineApiUsers::User
+          else super
+          end
+        end
+      
+        def type_cast(value)
+          return nil if value.nil?
+          return coder.load(value) if encoded?
+          
+          klass = self.class
+          case type
+          when 'user' then klass.string_to_user(value)
+          else super
+          end
+        end
+      
+        def type_cast_code(var_name)
+          klass = self.class.name
+          case type
+          when 'user' then "#{klass}.string_to_user(#{var_name})"
+          else super
+          end
+        end
+      
+        def simplified_type(field_type)
+          case field_type
+            when /user/i then :string
+            else super  
+          end
+        end
+          
+        def string_to_user(value)
+          Java::ComGoogleAppengineApiUsers::User.new(value)
+        end
+
       end
     end
 

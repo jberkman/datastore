@@ -62,7 +62,8 @@ module Arel
           :date        => lambda{|k,t| t.is_a?(Date)? t : Date.parse(t.to_s) },
           :float       => lambda{|k,f| f.to_f },
           :text        => lambda{|k,t| AppEngine::Datastore::Text.new(t) },
-          :binary      => lambda{|k,t| AppEngine::Datastore::Blob.new(t) }
+          :binary      => lambda{|k,t| AppEngine::Datastore::Blob.new(t) },
+          :boolean     => lambda{|k,b| b == true || b.to_s =~ (/(true|t|yes|y|1)$/i) ? true : false }
         }
         InScan = /'((\\.|[^'])*)'|(\d+)/
         def apply_filter( key, opt, value )
@@ -103,22 +104,22 @@ module Arel
         end
 
         def orders( ords )
-          ords.each{|o|
+          ords.each do |o|
             if( o.is_a? String )
-              key, dir, notuse = o.split
-              if dir.is_a? String
+              o.split(',').each do |pair|
+                key, dir, notuse = pair.split
                 dir = case dir
-                  when "ASC"
-                    AppEngine::Datastore::Query::ASCENDING
-                  when "DESC"
-                    AppEngine::Datastore::Query::DESCENDING
-                  end
+                when /ASC/i
+                  AppEngine::Datastore::Query::ASCENDING
+                when /DESC/i
+                  AppEngine::Datastore::Query::DESCENDING
+                end
+                q.sort( key, dir )
               end
             else
-              key, dir = o.expr, o.direction
+              q.sort(o.expr, o.direction)
             end
-            q.sort( key, dir )
-          }
+          end
           self
         end
       end
