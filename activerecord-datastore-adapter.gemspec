@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-$:.push File.expand_path("../lib", __FILE__)
 
 Gem::Specification.new do |s|
   s.name        = "activerecord-datastore-adapter"
@@ -14,9 +13,32 @@ Gem::Specification.new do |s|
 
   s.rubyforge_project = "activerecord-datastore-adapter"
 
-  s.files         = `git ls-files`.split("\n")
-  s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
-  s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
+  s.files = %w{
+.gitignore
+Gemfile
+Gemfile.lock
+MIT-LICENSE
+README.textile
+Rakefile
+activerecord-datastore-adapter.gemspec
+examples/rails3.rb
+examples/rails3_edge.rb
+lib/active_record/connection_adapters/datastore_adapter.rb
+lib/active_record/datastore_associations_patch.rb
+lib/arel/visitors/datastore.rb
+spec/create_table_spec.rb
+spec/datatypes_spec.rb
+spec/operators_spec.rb
+spec/query_spec.rb
+spec/relations_spec.rb
+spec/spec_helper.rb
+spec/table_schema.rb
+      }
+
+  s.files.each do |f|
+    s.test_files << f if f =~ /(test|spec|features)\/.*/
+    s.executables << f if f =~ /(bin)\/.*/
+  end
   s.require_paths = ["lib"]
 
   s.add_dependency( 'appengine-apis', '>= 0.0.22' )
