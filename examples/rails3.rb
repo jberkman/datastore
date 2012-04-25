@@ -7,9 +7,10 @@ disable_system_gems
 disable_rubygems
 bundle_path ".gems/bundler_gems"
 
-gem 'rails', '3.0.6'
-gem 'activerecord-datastore-adapter', '>= 0.0.4'
+gem 'rails', '3.0.12'
+gem 'activerecord-datastore-adapter', '>= 0.0.5'
 gem 'jruby-rack', '1.0.5'
+gem 'arel', '2.0.10'
 
 GEMFILE
 end
