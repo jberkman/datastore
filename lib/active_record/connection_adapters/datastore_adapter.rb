@@ -9,7 +9,7 @@ require 'active_record/datastore_associations_patch'
 require 'yaml'
 require 'arel/visitors/datastore'
 
-require 'java'
+require 'appengine-apis/users'
 
 module ActiveRecord
   class Base
@@ -21,47 +21,41 @@ module ActiveRecord
   module ConnectionAdapters
 
     class DataStoreColumn < Column
-      class << self
 
+      def klass
+        case sql_type
+        when 'user' then AppEngine::Users::User
+        else super
+        end
+      end
+      
+      def type_cast(value)
+        return nil if value.nil?
+          
+        klass = self.class
+        case sql_type
+        when 'user' then klass.string_to_user(value)
+        else super
+        end
+      end
+      
+      def type_cast_code(var_name)
+        klass = self.class.name
+        case sql_type
+        when 'user' then "#{klass}.string_to_user(#{var_name})"
+        else super
+        end
+      end
+      
+      class << self
+      
         def binary_to_string value
           AppEngine::Datastore::Blob.new(value)
         end
-
-        def klass
-          case type
-          when 'user' then Java::ComGoogleAppengineApiUsers::User
-          else super
-          end
-        end
       
-        def type_cast(value)
-          return nil if value.nil?
-          return coder.load(value) if encoded?
-          
-          klass = self.class
-          case type
-          when 'user' then klass.string_to_user(value)
-          else super
-          end
-        end
-      
-        def type_cast_code(var_name)
-          klass = self.class.name
-          case type
-          when 'user' then "#{klass}.string_to_user(#{var_name})"
-          else super
-          end
-        end
-      
-        def simplified_type(field_type)
-          case field_type
-            when /user/i then :string
-            else super  
-          end
-        end
-          
         def string_to_user(value)
-          Java::ComGoogleAppengineApiUsers::User.new(value)
+          return value if value.is_a? AppEngine::Users::User
+          AppEngine::Users::User.new(value)
         end
 
       end
@@ -201,6 +195,11 @@ module ActiveRecord
         column ? column[0] : nil
       end
 
+      def insert_fixture(fixture, table_name)
+        e = AppEngine::Datastore::Entity.new(table_name)
+        AppEngine::Datastore.put(e.update(fixture.to_hash))
+      end
+
       class DB
         def initialize( config )
           @config = { :database => 'database.yaml', :index => 'index.yaml', :namespace => 'dev' }.merge( config )
@@ -280,9 +279,7 @@ module ActiveRecord
         end
 
         def columns( table_name, name = nil )
-          if tables[table_name]
-            tables[table_name]
-          end
+          tables[table_name] || {}
         end
 
         def primary_key( tname )
