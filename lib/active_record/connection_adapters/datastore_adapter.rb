@@ -196,8 +196,7 @@ module ActiveRecord
       end
 
       def insert_fixture(fixture, table_name)
-        e = AppEngine::Datastore::Entity.new(table_name)
-        AppEngine::Datastore.put(e.update(fixture.to_hash))
+        fixture.model_class.create fixture.to_hash
       end
 
       class DB
