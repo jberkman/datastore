@@ -292,7 +292,7 @@ module ActiveRecord
           elsif( options[:count] )
             output.push( { "count" => q.count() } )
           else
-            t_name = q.kind
+            t_name = q.kind.tableize
             p_key  = primary_key( t_name )
             column_list = columns( t_name )  
             q.fetch(options).each{|e| 

@@ -68,7 +68,7 @@ module Arel
         InScan = /'((\\.|[^'])*)'|(\d+)/
         def apply_filter( key, opt, value )
           key, opt = key.to_sym, opt.to_sym
-          column = @connection.columns(kind).find{|c| c.name == key.to_s }
+          column = @connection.columns(kind.tableize).find{|c| c.name == key.to_s }
           opt = :in      if value.is_a? Array
           type_cast_proc = TypeCast[ column.primary ? :primary_key : column.type ]
           if opt == :in or opt == :IN
@@ -133,7 +133,7 @@ module Arel
 
       def visit_Arel_Nodes_SelectStatement o
         c    = o.cores.first
-        QString.new( @connection, c.froms.name, get_limit_and_offset(o) ).wheres( c.wheres ).orders(o.orders).projections( c.projections )
+        QString.new( @connection, c.froms.name.classify, get_limit_and_offset(o) ).wheres( c.wheres ).orders(o.orders).projections( c.projections )
       end
 
       def insert_type_case( value )
@@ -141,17 +141,17 @@ module Arel
       end
 
       def visit_Arel_Nodes_InsertStatement o
-        e = AppEngine::Datastore::Entity.new(o.relation.name)
+        e = AppEngine::Datastore::Entity.new(o.relation.name.classify)
         o.columns.each_with_index{|c,i| e[c.name] = insert_type_case(o.values.left[i]) }
         e
       end
 
       def visit_Arel_Nodes_UpdateStatement o
-        QString.new( @connection, o.relation.name, :values => o.values.collect{|v| [ v.left.name, insert_type_case(v.right) ] } ).wheres( o.wheres )
+        QString.new( @connection, o.relation.name.classify, :values => o.values.collect{|v| [ v.left.name, insert_type_case(v.right) ] } ).wheres( o.wheres )
       end
 
       def visit_Arel_Nodes_DeleteStatement o
-        QString.new( @connection, o.relation.name ).wheres( o.wheres )
+        QString.new( @connection, o.relation.name.classify ).wheres( o.wheres )
       end
 
     end
