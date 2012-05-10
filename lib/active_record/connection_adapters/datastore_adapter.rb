@@ -21,10 +21,18 @@ module ActiveRecord
   module ConnectionAdapters
 
     class DataStoreColumn < Column
-
+      class Keys
+        class << self
+          def new *args
+            Array.[] *(args.collect { |k| AppEngine::Datastore::Key.new k })
+          end
+        end
+      end
+    
       def klass
         case sql_type
         when 'user' then AppEngine::Users::User
+        when 'keys' then Keys
         else super
         end
       end
@@ -147,7 +155,10 @@ module ActiveRecord
           yield td if block_given?
 
           fields = {}
-          td.columns.each{|c| fields[c.name.to_s] = { "default" => c.default, "type" => c.type.to_s, "null" => c.null } }
+          td.columns.each do |c|
+            fields[c.name.to_s] = { "default" => c.default, "type" => c.type.to_s, "null" => c.null }
+            fields[c.name.to_s]["primary_key"] = true if options[:id] == false && c.name.to_s == options[:primary_key]
+          end
           @connection.create_table( table_name, fields )
           td
         }
@@ -183,20 +194,48 @@ module ActiveRecord
         @connection.columns( table_name, name ).collect{|k,opt|
           is_primary = opt["type"] == "primary_key"
           c = DataStoreColumn.new( k, opt["default"], is_primary ? "integer" : opt["type"].to_s, opt["null"] )
-          c.primary = true if is_primary
+          c.primary = true if is_primary || opt["primary_key"]
           c
         } 
       end
       
       def primary_key( table_name )
-        column = @connection.columns( table_name ).find{|k,opt|
-          opt["type"] == "primary_key"
-        }
+        p_key_col = @connection.primary_key(table_name)
+        column = @connection.columns(table_name).find { |k, opt| k == p_key_col }
         column ? column[0] : nil
       end
 
       def insert_fixture(fixture, table_name)
-        fixture.model_class.create fixture.to_hash
+        # Parse multi-param values
+        o = fixture.model_class.new
+        # Don't guard as we want the key to be set
+        o.send(:attributes=, fixture.to_hash, false)
+
+        attrs = o.attributes
+        keyval = attrs.delete(primary_key(table_name))
+        
+        if keyval.is_a? AppEngine::Datastore::Key
+          args = [ keyval ]
+        else
+          if keyval.is_a? Integer
+            # allocate and use an id
+            range = AppEngine::Datastore::KeyRange.new nil, fixture.model_class.name, keyval, keyval
+            AppEngine::Datastore.service.allocate_id_range range
+            args = [ fixture.model_class.name, keyval ]
+          else
+            begin
+              # try as an encoded string
+              args = [ AppEngine::Datastore::Key.new keyval.to_s ]
+            rescue NativeException => e
+              # ...otherwise it's a name
+              args = [ fixture.model_class.name, keyval.to_s ]
+            end
+          end
+        end
+        # Create the entity w/ the correct key/path
+        e = AppEngine::Datastore::Entity.new *args
+        # Store it.
+        AppEngine::Datastore.put e.update(attrs)
       end
 
       class DB
@@ -282,6 +321,9 @@ module ActiveRecord
         end
 
         def primary_key( tname )
+          columns(tname).each do |k, opt|
+            return k if opt["type"] == "primary_key" || opt["primary_key"]
+          end
           'id'
         end
 
@@ -298,7 +340,7 @@ module ActiveRecord
             q.fetch(options).each{|e| 
               h = {}
               column_list.each{|n,opt|
-                h[n] = ( n == p_key ? e.key.id : e[n] )
+                h[n] = n == p_key ? (opt['type'] == 'key' ? e.key : e.key.id) : e[n]
               }
               output.push( h )
             }
