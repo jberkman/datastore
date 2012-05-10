@@ -135,6 +135,10 @@ module ActiveRecord
       end
       
       def delete(sql, name = nil)
+        if sql.respond_to? :match
+          m = sql.match /\ADELETE FROM (\w*)\z/
+          sql = Arel::Visitors::Datastore::QString.new(self, m[1]) if m
+        end
         log( "Delete: " + sql.inspect, name ) {
           @connection.delete_query( sql.q )
         }
