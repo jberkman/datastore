@@ -354,6 +354,9 @@ module ActiveRecord
 
         def insert_query( q )
           AppEngine::Datastore.put q
+          columns(q.kind.tableize).each do |n, opt|
+            return q.key if opt["primary_key"] && opt["type"] == 'key'
+          end
           q.key.id
         end
 
