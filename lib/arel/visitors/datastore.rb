@@ -155,8 +155,19 @@ module Arel
       end
 
       def visit_Arel_Nodes_InsertStatement o
-        e = AppEngine::Datastore::Entity.new(o.relation.name.classify)
-        o.columns.each_with_index{|c,i| e[c.name] = insert_type_case(o.values.left[i]) }
+        p_key = @connection.primary_key o.relation.name
+        args = [ o.relation.name.classify ]
+        o.columns.each_with_index do |c, i|
+          if c.name.to_s == p_key
+            key = insert_type_case(o.values.left[i])
+            args = [ key ]
+            break
+          end
+        end
+        e = AppEngine::Datastore::Entity.new *args
+        o.columns.each_with_index do |c,i|
+          e[c.name] = insert_type_case(o.values.left[i]) if c.name.to_s != p_key
+        end
         e
       end
 
