@@ -56,7 +56,17 @@ module Arel
         end
 
         TypeCast = {
-          :primary_key => lambda{|k,v| v.is_a?(JavaKey) ? v : AppEngine::Datastore::Key.from_path( k, v.to_i ) },
+          :primary_key => lambda { |k,v|
+            return v if v.is_a? AppEngine::Datastore::Key
+            v = v.to_i if v.respond_to?(:match) && v.match(/\A\d+\z/)
+            if v.is_a? String
+              begin
+                return AppEngine::Datastore::Key.new v
+              rescue NativeException => e
+              end
+            end
+            AppEngine::Datastore::Key.from_path k, v
+          },
           :integer     => lambda{|k,i| i.to_i },
           :datetime    => lambda{|k,t| t.is_a?(Time)? t : Time.parse(t.to_s) },
           :date        => lambda{|k,t| t.is_a?(Date)? t : Date.parse(t.to_s) },
