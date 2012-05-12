@@ -21,17 +21,20 @@ module ActiveRecord
   module ConnectionAdapters
 
     class DataStoreColumn < Column
+      Key = AppEngine::Datastore::Key
+      User = AppEngine::Users::User
       class Keys
         class << self
           def new *args
-            Array.[] *(args.collect { |k| AppEngine::Datastore::Key.new k })
+            Array.[] *(args.collect { |k| k.is_a?(Key) ? k : Key.new(k) })
           end
         end
       end
     
       def klass
         case sql_type
-        when 'user' then AppEngine::Users::User
+        when 'user' then User
+        when 'key' then Key
         when 'keys' then Keys
         else super
         end
@@ -43,6 +46,8 @@ module ActiveRecord
         klass = self.class
         case sql_type
         when 'user' then klass.string_to_user(value)
+        when 'key' then klass.string_to_key(value)
+        when 'keys' then klass.string_to_keys(value)
         else super
         end
       end
@@ -51,6 +56,8 @@ module ActiveRecord
         klass = self.class.name
         case sql_type
         when 'user' then "#{klass}.string_to_user(#{var_name})"
+        when 'key' then "#{klass}.string_to_key(#{var_name})"
+        when 'keys' then "#{klass}.string_to_keys(#{var_name})"
         else super
         end
       end
@@ -62,10 +69,16 @@ module ActiveRecord
         end
       
         def string_to_user(value)
-          return value if value.is_a? AppEngine::Users::User
-          AppEngine::Users::User.new(value)
+          value.is_a?(User) ? value : User.new(value)
+        end
+    
+        def string_to_key value
+          value.is_a?(Key) ? value : Key.new(value)
         end
 
+        def string_to_keys value
+          value.collect { |e| string_to_key e }
+        end
       end
     end
 
@@ -210,36 +223,11 @@ module ActiveRecord
       end
 
       def insert_fixture(fixture, table_name)
-        # Parse multi-param values
         o = fixture.model_class.new
-        # Don't guard as we want the key to be set
+        # Parse multi-param values, and don't guard as we want the key to be
+        # set if present in the fixture
         o.send(:attributes=, fixture.to_hash, false)
-
-        attrs = o.attributes
-        keyval = attrs.delete(primary_key(table_name))
-        
-        if keyval.is_a? AppEngine::Datastore::Key
-          args = [ keyval ]
-        else
-          if keyval.is_a? Integer
-            # allocate and use an id
-            range = AppEngine::Datastore::KeyRange.new nil, fixture.model_class.name, keyval, keyval
-            AppEngine::Datastore.service.allocate_id_range range
-            args = [ fixture.model_class.name, keyval ]
-          else
-            begin
-              # try as an encoded string
-              args = [ AppEngine::Datastore::Key.new keyval.to_s ]
-            rescue NativeException => e
-              # ...otherwise it's a name
-              args = [ fixture.model_class.name, keyval.to_s ]
-            end
-          end
-        end
-        # Create the entity w/ the correct key/path
-        e = AppEngine::Datastore::Entity.new *args
-        # Store it.
-        AppEngine::Datastore.put e.update(attrs)
+        o.save
       end
 
       class DB
