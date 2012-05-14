@@ -23,49 +23,86 @@ module ActiveRecord
     class DataStoreColumn < Column
       Key = AppEngine::Datastore::Key
       User = AppEngine::Users::User
-      class Keys
+      Blob = AppEngine::Datastore::Blob
+
+      class << self
+        def handle_multi_value v
+          v.respond_to?(:count) ? (v.collect { |e| yield e }) : (yield e)
+        end
+      end
+      
+      class Multi
         class << self
+          attr_accessor :column
           def new *args
-            Array.[] *(args.collect { |k| k.is_a?(Key) ? k : Key.new(k) })
+            DataStoreColumn.handle_multi_value args do |k|
+              k.is_a?(column.klass) ? k : column.klass.new(k)
+            end
           end
         end
       end
     
+      def multi_class
+        unless @checked_for_multi
+          @checked_for_multi = true
+          m = sql_type.match /\Amulti_(\w+)\z/
+          if m
+            @multi_class = Multi.dup
+            @multi_class.column = DataStoreColumn.new(name, default, m[1], null)
+            @multi_class.column.primary = primary
+          end
+        end
+        @multi_class
+      end
+    
       def klass
+        return multi_class if multi_class
+
         case sql_type
+        when 'blob' then Blob
         when 'user' then User
         when 'key' then Key
-        when 'keys' then Keys
         else super
         end
       end
       
       def type_cast(value)
         return nil if value.nil?
-          
-        klass = self.class
-        case sql_type
-        when 'user' then klass.string_to_user(value)
-        when 'key' then klass.string_to_key(value)
-        when 'keys' then klass.string_to_keys(value)
-        else super
+
+        if multi_class
+          DataStoreColumn.handle_multi_value value do |v|
+            multi_class.column.type_cast v
+          end
+        else
+          klass = self.class
+          case sql_type
+          when 'user' then klass.string_to_user(value)
+          when 'key' then klass.string_to_key(value)
+          else super
+          end
         end
       end
       
       def type_cast_code(var_name)
         klass = self.class.name
-        case sql_type
-        when 'user' then "#{klass}.string_to_user(#{var_name})"
-        when 'key' then "#{klass}.string_to_key(#{var_name})"
-        when 'keys' then "#{klass}.string_to_keys(#{var_name})"
-        else super
+        if multi_class
+          ret = "#{klass}.handle_multi_value(#{var_name}) do |v| "
+          ret += multi_class.column.type_cast_code "v"
+          ret += " end"
+          ret
+        else
+          case sql_type
+          when 'user' then "#{klass}.string_to_user(#{var_name})"
+          when 'key' then "#{klass}.string_to_key(#{var_name})"
+          else super
+          end
         end
       end
       
       class << self
       
         def binary_to_string value
-          AppEngine::Datastore::Blob.new(value)
+          Blob.new(value)
         end
       
         def string_to_user(value)
@@ -76,9 +113,6 @@ module ActiveRecord
           value.is_a?(Key) ? value : Key.new(value)
         end
 
-        def string_to_keys value
-          value.collect { |e| string_to_key e }
-        end
       end
     end
 
@@ -369,5 +403,3 @@ module ActiveRecord
     end
   end
 end
-
-
