@@ -8,7 +8,7 @@ module Arel
     class Datastore < Arel::Visitors::ToSql
 
       class QString
-        JavaKey = Java::ComGoogleAppengineApiDatastore::Key
+        Key = Java::ComGoogleAppengineApiDatastore::Key
 
         attr :kind
         attr :q 
@@ -57,15 +57,17 @@ module Arel
 
         TypeCast = {
           :primary_key => lambda { |k,v|
-            return v if v.is_a? AppEngine::Datastore::Key
+            return v if v.is_a? Key
             v = v.to_i if v.respond_to?(:match) && v.match(/\A\d+\z/)
             if v.is_a? String
+              y = YAML.parse v
+              return y.transform if YAML.tagged_classes[y.type_id] == Key
               begin
-                return AppEngine::Datastore::Key.new v
+                return Key.new v
               rescue NativeException => e
               end
             end
-            AppEngine::Datastore::Key.from_path k, v
+            Key.from_path k, v
           },
           :integer     => lambda{|k,i| i.to_i },
           :datetime    => lambda{|k,t| t.is_a?(Time)? t : Time.parse(t.to_s) },
@@ -85,8 +87,14 @@ module Arel
             value = value.scan(InScan).collect{|d| d.find{|i| i}}   if value.is_a? String
             value.collect!{|v| type_cast_proc.call(kind,v) }        if type_cast_proc
             options[:empty], value = true, [ "EMPTY" ]              if value.empty?
-          else
-            value = type_cast_proc.call( kind, value ) if type_cast_proc
+          elsif type_cast_proc
+            value = type_cast_proc.call( kind, value )
+          elsif value.is_a?(String)
+            # ActiveRecord::ConnectionAdapters::Quoting::quote converts
+            # values to YAML, so things like User come in as strings.
+            # But only instantiate the object if its type matches the column.
+            doc = YAML.parse(value)
+            value = doc.transform if YAML.tagged_classes[doc.type_id] == column.klass
           end
           if column.nil? && key == :ancestor && opt == :==
             q.ancestor = value
@@ -103,7 +111,7 @@ module Arel
                      /'((\\.|[^'])*)'/,
                      /([\w\.]+)/,
                      /([^\w\s\.'"]+)/ )
-        Optr      = { "=" => :== }
+        Optr      = { "=" => :==, "IS" => :== }
         ExOptr    = ["(",")"]
         def parese_expression_string( query )
           datas = query.scan( RExpr ).collect{|a| a.find{|i| i } }
