@@ -110,7 +110,11 @@ module ActiveRecord
         end
     
         def string_to_key value
-          value.is_a?(Key) ? value : Key.new(value)
+          begin
+            value.is_a?(Key) ? value : Key.new(value)
+          rescue NativeException => ex
+            raise ex unless ex.cause.class == Java::JavaLang::IllegalArgumentException
+          end
         end
 
       end
