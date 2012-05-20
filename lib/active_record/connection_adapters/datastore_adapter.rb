@@ -232,6 +232,14 @@ module ActiveRecord
       end
 
       alias :change_column :add_column
+      
+      def rename_column(table_name, column_name, new_column_name)
+        @connection.rename_column table_name, column_name, new_column_name
+      end
+      
+      def remove_column(table_name, column_name)
+        @connection.remove_column(table_name, column_name)
+      end
 
       def add_index(table_name, column_name, options = {})
         @connection.add_index( table_name, column_name, options )
@@ -309,6 +317,18 @@ module ActiveRecord
         end
 
         alias :change_column :add_column
+        
+        def remove_column(table_name, columns)
+          columns.each do |column_name|
+            @tables[table_name].delete column_name
+          end
+          save_schema
+        end
+        
+        def rename_column(table_name, column_name, new_column_name)
+          @tables[table_name][new_column_name] = @tables[table_name].delete column_name
+          save_schema
+        end
 
         def add_index(table_name, column_name, options = {})
           table_name  = table_name.to_s
