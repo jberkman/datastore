@@ -82,7 +82,7 @@ module Arel
           key, opt = key.to_sym, opt.to_sym
           column = @connection.columns(kind.tableize).find{|c| c.name == key.to_s }
           opt = :in      if value.is_a? Array
-          type_cast_proc = TypeCast[ (column.nil? && key == :ancestor) || column.primary ? :primary_key : column.type ]
+          type_cast_proc = TypeCast[ (column.nil? && (key == :id || key == :ancestor)) || column.primary ? :primary_key : column.type ]
           if opt == :in or opt == :IN
             value = value.scan(InScan).collect{|d| d.find{|i| i}}   if value.is_a? String
             value.collect!{|v| type_cast_proc.call(kind,v) }        if type_cast_proc
@@ -99,7 +99,7 @@ module Arel
           if column.nil? && key == :ancestor && opt == :==
             q.ancestor = value
           else
-            key = :__key__ if column.primary
+            key = :__key__ if (column.nil? && key == :id) || column.primary
             q.filter( key, opt, value )
           end
         end
