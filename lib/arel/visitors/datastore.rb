@@ -86,7 +86,10 @@ module Arel
           if opt == :in or opt == :IN
             value = value.scan(InScan).collect{|d| d.find{|i| i}}   if value.is_a? String
             value.collect!{|v| type_cast_proc.call(kind,v) }        if type_cast_proc
-            options[:empty], value = true, [ "EMPTY" ]              if value.empty?
+            if value.empty?
+              options[:empty] = true
+              return
+            end
           elsif type_cast_proc
             value = type_cast_proc.call( kind, value )
           elsif value.is_a?(String)
