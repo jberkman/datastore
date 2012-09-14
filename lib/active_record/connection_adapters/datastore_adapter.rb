@@ -319,6 +319,7 @@ module ActiveRecord
         alias :change_column :add_column
         
         def remove_column(table_name, columns)
+          columns = [ columns ] unless columns.respond_to? each
           columns.each do |column_name|
             @tables[table_name].delete column_name
           end
