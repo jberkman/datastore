@@ -180,7 +180,23 @@ module Arel
       end
 
       def visit_Arel_Nodes_UpdateStatement o
-        QString.new( @connection, o.relation.name.classify, :values => o.values.collect{|v| [ v.left.name, insert_type_case(v.right) ] } ).wheres( o.wheres )
+        values = o.values.collect do |v|
+          if Arel::Nodes::SqlLiteral === v
+            # This is a little hairy. This value can come from
+            # AR::Base::sanitize_sql_hash_for_assignment
+            # AR::Base::quote_bound_value
+            # AR::ConnectionAdapters::Quoting::quote[_string]
+            # Basically: "column_name = 'quoted_value'"
+            # So far, it only happens via .touch() so the values are dates.
+            # XXX: FIXME XXX
+            v = v.split(' = ')
+            column = @connection.columns(o.relation.name).find{|c| c.name == v[0]}
+            [ column.name, column.type_cast(v[1].match(/'(.*)'/)[1]) ]
+            else
+            [ v.left.name, insert_type_case(v.right) ]
+          end
+        end
+        QString.new( @connection, o.relation.name.classify, :values => values ).wheres( o.wheres )
       end
 
       def visit_Arel_Nodes_DeleteStatement o
